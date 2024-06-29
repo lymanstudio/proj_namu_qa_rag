@@ -6,7 +6,8 @@ import re
 # url = 'https://namu.wiki/w/%EC%9A%A9%EC%9D%B8%20%EB%B2%84%EC%8A%A4%20119'
 # url = 'https://namu.wiki/w/ILLIT'
 url = 'https://namu.wiki/w/%EC%96%B4%EB%A6%B0%EC%9D%B4%EB%B3%B4%ED%98%B8%EA%B5%AC%EC%97%AD'
-url = 'https://namu.wiki/w/%EA%B5%AD%EA%B0%80%EA%B3%B5%EC%9D%B8%20%EB%8D%B0%EC%9D%B4%ED%84%B0%EB%B6%84%EC%84%9D%20%EC%A0%84%EB%AC%B8%EA%B0%80'
+
+url = 'https://namu.wiki/w/Pok%C3%A9Rogue?from=%ED%8F%AC%EC%BC%80%EB%A1%9C%EA%B7%B8'
 # html 가져오기
 session = requests.Session()
 html_doc = session.get(url)
@@ -52,7 +53,7 @@ for i, e in enumerate(toc.find_all("span", class_  = "toc-item")):
 toc_dict['s-f'] = ('footnote', soup.find("div", class_ = 'wiki-macro-footnote')) # 마지막엔 각주 영역
 
 # 목차 프린트
-print(f"\nDocument of {soup.find("a", href = "/w/"+url.split("/w/")[-1]).get_text()}\n")
+print(f"\nDocument of {soup.find("a", href = "/w/"+url.split("/w/")[-1].split("?")[0]).get_text()}\n")
 print("\n================== Table of Contents  ==================\n")
 for k, v in toc_dict.items():
     num = k.count(".")
