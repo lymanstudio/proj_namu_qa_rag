@@ -96,9 +96,13 @@ class namuCrawler(object):
             # 설명이 있는 경우엔 get_text()로 텍스트 반환
             text_content = []
             for element in elements_between:
-                # 만약 각주가 있는 엘리먼트라면 각주를 strip하는 함수 적용,  아니면 그냥 일반 get_text() 적용
-                if element.find("a", class_ = 'wiki-fn-content') != None:
+                # 만약 펼치기/접기 버튼이 있으면 그냥 넘어가기 : 데이터가 중복임
+                if element.find("dl", class_ = 'wiki-folding') != None:
+                    continue
+                # 만약 각주가 있는 엘리먼트라면 각주를 strip하는 함수 적용
+                elif element.find("a", class_ = 'wiki-fn-content') != None:
                     text_content.append(self.strip_footnotes(element))
+                #아니면 그냥 일반 get_text() 적용
                 else:
                     text_content.append(element.get_text())
             return (head, text_content)

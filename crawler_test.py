@@ -8,7 +8,7 @@ url = 'https://namu.wiki/w/ILLIT'
 # url = 'https://namu.wiki/w/SUMMER%20MOON'
 # url = 'https://namu.wiki/w/%EA%B4%91%EC%A0%80%EC%9A%B0%20%EC%B0%A8%EC%A7%80'
 
-# url = 'https://namu.wiki/w/%ED%98%B8%EB%B9%97(%EA%B0%80%EC%9A%B4%EB%8D%B0%EB%95%85)'
+url = 'https://namu.wiki/w/%EA%B0%80%EB%82%98%EC%9E%90%EC%99%80%EC%8B%9C'
 
 # html 가져오기
 session = requests.Session()
@@ -87,7 +87,7 @@ def strip_footnotes(ele):
                 continue
             content_list.append(c.string.strip())
             prv_tag = False
-    return "".join(content_list)
+    return content_list
 
 def get_content_between_tags(head, start_tag, end_tag):
     """두개의 태그 사이의 wiki-paragraph 정보 추출"""
@@ -152,14 +152,14 @@ def get_content_heading(heading_idx):
 
 
 
-# html_str = str(soup)
+html_str = str(soup)
 
 
-# # 시작 태그와 끝 태그의 위치를 찾아 사이의 컨텐츠를 추출, 임시 soup로 만듦
-# start_pos = html_str.find(str(toc_dict.get("s-3.4.1")[1]))
-# end_pos = html_str.find(str(toc_dict.get("s-3.4.2")[1]))
-# between_content = html_str[start_pos:end_pos]
-# soup_between = BeautifulSoup(between_content, 'html.parser')
-# elements_between = soup_between.find_all('div', class_='wiki-paragraph')
+# 시작 태그와 끝 태그의 위치를 찾아 사이의 컨텐츠를 추출, 임시 soup로 만듦
+start_pos = html_str.find(str(toc_dict.get("s-4")[1]))
+end_pos = html_str.find(str(toc_dict.get("s-5")[1]))
+between_content = html_str[start_pos:end_pos]
+soup_between = BeautifulSoup(between_content, 'html.parser')
+elements_between = soup_between.find_all('div', class_='wiki-paragraph')
 
-get_content_heading("s-3.4.1")
+get_content_heading("s-4")
