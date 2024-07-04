@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
-class namuCrawler(object):
+class NamuCrawler(object):
     def __init__(self, url, hop):
         self.url = url
         self.hop = hop # 현재 문서가 몇번째 hop(depth)으로 크롤링 되고 있는지
@@ -74,7 +74,6 @@ class namuCrawler(object):
     def get_content_between_tags(self, head, start_tag, end_tag):
         """두개의 태그 사이의 wiki-paragraph 정보 추출"""
         html_str = str(self.soup)
- 
 
         # 시작 태그와 끝 태그의 위치를 찾아 사이의 컨텐츠를 추출, 임시 soup로 만듦
         start_pos = html_str.find(str(start_tag))
@@ -86,8 +85,8 @@ class namuCrawler(object):
         elements_between = soup_between.find_all('div', class_='wiki-paragraph')
 
         if len(elements_between) == 0:
-            # 설명이 아예 없는 경우 None 반환
-            return (head, None)
+            # 설명이 아예 없는 경우 아래 안내 메세지 반환
+            return (head, "해당 섹션에 대한 설명이 없거나 하위 문서로 대체됩니다.")
         elif (ext_icon := elements_between[0].find("img", alt = '상세 내용 아이콘')) != None:
             # 타 문서로 설명이 대체된 경우엔 링크 반환
             ext_link = elements_between[0].find("a", class_ = "wiki-link-internal")['href']
