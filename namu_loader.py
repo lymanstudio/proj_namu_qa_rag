@@ -1,9 +1,10 @@
 import os
-from namu_crawler import namuCrawler
+from namu_crawler import NamuCrawler
 from langchain_core.documents import Document
 from langchain_community.document_loaders.base import BaseLoader
 from typing import Iterator
 import time
+base_url = "https://namu.wiki"
 
 class NamuLoader(BaseLoader):
     """Load NamuWiki pages using `namuClawler`."""
@@ -11,13 +12,13 @@ class NamuLoader(BaseLoader):
         self.url = url
         self.max_hop = max_hop
         self.verbose = verbose
-        self.base_nc = namuCrawler(url = self.url, hop = 0)
+        self.base_nc = NamuCrawler(url = self.url, hop = 0)
         self.base_nc.construct_toc()
         if (self.verbose) == True:
             self.base_nc.print_toc()
 
     def get_total_content(self, parent_item, sub_url, hop):
-        sub_nc = namuCrawler(url = sub_url, hop = hop)
+        sub_nc = NamuCrawler(url = sub_url, hop = hop)
         sub_nc.construct_toc()
         # print(sub_nc.get_doc_title(), parent_item, sub_nc.hop, max_hop)
         to_return = ""
@@ -30,8 +31,10 @@ class NamuLoader(BaseLoader):
                     content = self.get_total_content(parent_item = parent_item, sub_url = base_url + content, hop = sub_nc.hop + 1)
                 else: # max_hop과 같으면 그냥 링크로 대체한다고만 써주기
                     content = f"{cur_toc_item[1]}: 다음 문서로 대체 설명: {base_url + content}"
+            elif content == None: # 빈 각주라면 그냥 넘어가기
+                continue
             else: # 일반 설명은 {현재 목차 : 설명} 꼴로 구성
-                content = f'{cur_toc_item[1]}: {" ".join(content) if type(content) == list else ""}'
+                content = f'{cur_toc_item[1]}: {" ".join(content) if type(content) == list else content}'
             
             to_return = to_return + "\n" + content + "\n"
 
@@ -44,7 +47,8 @@ class NamuLoader(BaseLoader):
         cur_toc_item, content = self.base_nc.get_content_heading(header)
         if content == None:
             return (cur_toc_item, None)
-        elif type(content) == str and '/w/' in content: # content가 링크 대체라면
+        elif type(content) == str and '/w/' in content: # content가 링크 대체라면 링크로 들어가 전체 다 가져오기
+            print(base_url + content)
             return (cur_toc_item, self.get_total_content(parent_item = self.base_nc.toc_dict.get(header)[0], sub_url = base_url + content, hop = self.base_nc.hop + 1))
         else:
             return (cur_toc_item, " ".join(content))
@@ -53,10 +57,13 @@ class NamuLoader(BaseLoader):
         """Iterate over content items to load Documents"""
         for s, header in self.base_nc.toc_dict.items():
             ((index, toc_item), cur_content) = self.get_a_content(s)
+            
             cur_metadata = {
                 "index" : index,
                 "toc_item" : toc_item
             }
+            if cur_content == None: #각주가 없는 문서의 경우 cur_content를 None 반환 => 넘어가기
+                continue
 
             if self.verbose == True:
                 print(">> ", s, header[0][1])

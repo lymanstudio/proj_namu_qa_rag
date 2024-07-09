@@ -15,7 +15,6 @@ class NamuCrawler(object):
         toc = self.soup.find("div", class_ = 'toc-indent')
         self.toc_dict = dict()
 
-        """만약 프로필이 있는 문서라면 가장 앞에 구성"""
         html_str = str(self.soup)
         start_pos = html_str.find(str('<body>')) + len(str('<body>'))
         toc_str = str(self.soup.find("div", class_='wiki-macro-toc'))
@@ -23,6 +22,8 @@ class NamuCrawler(object):
         between_content = html_str[start_pos:end_pos]
         soup_between = BeautifulSoup(between_content, 'html.parser')
 
+
+        """만약 프로필이 있는 문서라면 가장 앞에 구성"""
         if len(profile := soup_between.find_all('div', class_ = 'wiki-table-wrap table-right')) > 0:
             self.toc_dict['s-p'] = (("0.",'PROFILE'), profile[-1]) # dictionary의 첫번째 아이템으로 넣기
 
@@ -70,6 +71,15 @@ class NamuCrawler(object):
                 content_list.append(c.string.strip())
                 prv_tag = False
         return "".join(content_list)
+    
+    def strip_table(self, ele):
+        content_list = []
+        for content in ele.find_all("div", class_ = 'wiki-paragraph'):
+            if (fn_c := content.find("a", class_ = 'wiki-fn-content')) != None: ## 각주가 있을 경우
+                content_list.append(f"{content.contents[0]}({fn_c['href']}; {fn_c['title']}), ")
+            else:
+                content_list.append(content.get_text() + ",")
+        return  "".join(content_list)
 
     def get_content_between_tags(self, head, start_tag, end_tag):
         """두개의 태그 사이의 wiki-paragraph 정보 추출"""
@@ -77,16 +87,22 @@ class NamuCrawler(object):
 
         # 시작 태그와 끝 태그의 위치를 찾아 사이의 컨텐츠를 추출, 임시 soup로 만듦
         start_pos = html_str.find(str(start_tag))
-        end_pos = html_str.find(str(end_tag))
+        if head[1] == "PROFILE": ## 프로필 이라면 목차 전까지
+            end_pos = html_str.find(str('<div class="wiki-macro-toc"'))
+        else:
+            end_pos = html_str.find(str(end_tag))
         between_content = html_str[start_pos:end_pos]
         soup_between = BeautifulSoup(between_content, 'html.parser')
 
         # wiki-paragraph를 가진 엘리먼트를 수집, 텍스트 컨텐츠 추출
-        elements_between = soup_between.find_all('div', class_='wiki-paragraph')
+        if head[1] == "PROFILE":
+            elements_between = [ele for ele in soup_between.find_all('div', class_='wiki-paragraph')]
+        else:
+            elements_between = [ele for ele in soup_between.find_all('div', class_='wiki-paragraph') if ele.find_parent().name != "td"]
 
         if len(elements_between) == 0:
             # 설명이 아예 없는 경우 아래 안내 메세지 반환
-            return (head, "해당 섹션에 대한 설명이 없거나 하위 문서로 대체됩니다.")
+            return (head, ["해당 섹션에 대한 설명이 없거나 하위 문서로 대체됩니다."])
         elif (ext_icon := elements_between[0].find("img", alt = '상세 내용 아이콘')) != None:
             # 타 문서로 설명이 대체된 경우엔 링크 반환
             ext_link = elements_between[0].find("a", class_ = "wiki-link-internal")['href']
@@ -98,12 +114,23 @@ class NamuCrawler(object):
                 # 만약 펼치기/접기 버튼이 있으면 그냥 넘어가기 : 데이터가 중복임
                 if element.find("dl", class_ = 'wiki-folding') != None:
                     continue
+                
+                # 만약 테이블이라면 테이블을 strip하는 함수 적용
+                elif element.find("table", class_ = 'wiki-table') != None:
+                    text_content.append(self.strip_table(element))
+
                 # 만약 각주가 있는 엘리먼트라면 각주를 strip하는 함수 적용
                 elif element.find("a", class_ = 'wiki-fn-content') != None:
                     text_content.append(self.strip_footnotes(element))
-                #아니면 그냥 일반 get_text() 적용
-                else:
+                # elif (fn_c := element.find("a", class_ = 'wiki-fn-content')) != None: ## 각주가 있을 경우
+                #     text_content.append(f"{element.contents[0]}({fn_c['href']}; {fn_c['title']})")
+                
+
+                
+
+                else: #아니면 그냥 일반 get_text() 적용
                     text_content.append(element.get_text())
+                    
             return (head, text_content)
         
 
@@ -130,7 +157,7 @@ class NamuCrawler(object):
             if self.toc_dict.get(heading_idx)[1] == None: # 각주가 없는 문서
                 return (self.toc_dict.get(heading_idx)[0], None)
             else:
-                return (self.toc_dict.get(heading_idx)[0], self.toc_dict.get(heading_idx)[1].get_text())
+                return (self.toc_dict.get(heading_idx)[0], [self.toc_dict.get(heading_idx)[1].get_text()])
         content = self.get_content_between_tags(head = self.toc_dict.get(heading_idx)[0], start_tag= start_tag, end_tag= end_tag)
 
         return content
