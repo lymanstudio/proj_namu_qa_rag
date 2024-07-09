@@ -55,6 +55,7 @@ class NamuLoader(BaseLoader):
         
     def lazy_load(self) -> Iterator[Document]:
         """Iterate over content items to load Documents"""
+        """Update"""
         for s, header in self.base_nc.toc_dict.items():
             ((index, toc_item), cur_content) = self.get_a_content(s)
             
