@@ -48,8 +48,11 @@ class NamuLoader(BaseLoader):
         if content == None:
             return (cur_toc_item, None)
         elif type(content) == str and '/w/' in content: # content가 링크 대체라면 링크로 들어가 전체 다 가져오기
-            print(base_url + content)
-            return (cur_toc_item, self.get_total_content(parent_item = self.base_nc.toc_dict.get(header)[0], sub_url = base_url + content, hop = self.base_nc.hop + 1))
+            if self.base_nc.hop + 1 <= self.max_hop:
+                print(base_url + content)
+                return (cur_toc_item, self.get_total_content(parent_item = self.base_nc.toc_dict.get(header)[0], sub_url = base_url + content, hop = self.base_nc.hop + 1))
+            else:
+                return (cur_toc_item, f"다음 문서로 대체 설명: {base_url + content}")
         else:
             return (cur_toc_item, " ".join(content))
         

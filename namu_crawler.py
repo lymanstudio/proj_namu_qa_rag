@@ -54,7 +54,7 @@ class NamuCrawler(object):
             else:
                 print("".join(["\t"] * (num - 1)) + v[0][0] + " " + v[0][1])
 
-    def strip_footnotes(slef, ele):
+    def strip_footnotes(self, ele):
         """각주를 벗겨 텍스트에 삽입하는 함수"""
         content_list = []
         prv_tag = None
@@ -76,7 +76,7 @@ class NamuCrawler(object):
         content_list = []
         for content in ele.find_all("div", class_ = 'wiki-paragraph'):
             if (fn_c := content.find("a", class_ = 'wiki-fn-content')) != None: ## 각주가 있을 경우
-                content_list.append(f"{content.contents[0]}({fn_c['href']}; {fn_c['title']}), ")
+                content_list.append(self.strip_footnotes(content))
             else:
                 content_list.append(content.get_text() + ",")
         return  "".join(content_list)
@@ -96,42 +96,45 @@ class NamuCrawler(object):
 
         # wiki-paragraph를 가진 엘리먼트를 수집, 텍스트 컨텐츠 추출
         if head[1] == "PROFILE":
-            elements_between = [ele for ele in soup_between.find_all('div', class_='wiki-paragraph')]
+            content = self.strip_table(soup_between.find("table"))
+            return (head, [content])
+            # elements_between = [ele for ele in soup_between.find_all('div', class_='wiki-paragraph')]
         else:
             elements_between = [ele for ele in soup_between.find_all('div', class_='wiki-paragraph') if ele.find_parent().name != "td"]
+            elements_between += [ele for ele in soup_between.find_all('table', class_ = 'wiki-table')]
 
-        if len(elements_between) == 0:
-            # 설명이 아예 없는 경우 아래 안내 메세지 반환
-            return (head, ["해당 섹션에 대한 설명이 없거나 하위 문서로 대체됩니다."])
-        elif (ext_icon := elements_between[0].find("img", alt = '상세 내용 아이콘')) != None:
-            # 타 문서로 설명이 대체된 경우엔 링크 반환
-            ext_link = elements_between[0].find("a", class_ = "wiki-link-internal")['href']
-            return (head, ext_link)
-        else: 
-            # 설명이 있는 경우엔 get_text()로 텍스트 반환
-            text_content = []
-            for element in elements_between:
-                # 만약 펼치기/접기 버튼이 있으면 그냥 넘어가기 : 데이터가 중복임
-                if element.find("dl", class_ = 'wiki-folding') != None:
-                    continue
-                
-                # 만약 테이블이라면 테이블을 strip하는 함수 적용
-                elif element.find("table", class_ = 'wiki-table') != None:
-                    text_content.append(self.strip_table(element))
-
-                # 만약 각주가 있는 엘리먼트라면 각주를 strip하는 함수 적용
-                elif element.find("a", class_ = 'wiki-fn-content') != None:
-                    text_content.append(self.strip_footnotes(element))
-                # elif (fn_c := element.find("a", class_ = 'wiki-fn-content')) != None: ## 각주가 있을 경우
-                #     text_content.append(f"{element.contents[0]}({fn_c['href']}; {fn_c['title']})")
-                
-
-                
-
-                else: #아니면 그냥 일반 get_text() 적용
-                    text_content.append(element.get_text())
+            if len(elements_between) == 0 or (len(elements_between) == 1 and elements_between[0].get_text() == ""):
+                # 설명이 아예 없는 경우 아래 안내 메세지 반환
+                return (head, ["해당 섹션에 대한 설명이 없거나 하위 문서로 대체됩니다."])
+            elif (ext_icon := elements_between[0].find("img", alt = '상세 내용 아이콘')) != None:
+                # 타 문서로 설명이 대체된 경우엔 링크 반환
+                ext_link = elements_between[0].find("a", class_ = "wiki-link-internal")['href']
+                return (head, ext_link)
+            else: 
+                # 설명이 있는 경우엔 get_text()로 텍스트 반환
+                text_content = []
+                for element in elements_between:
+                    # 만약 펼치기/접기 버튼이 있으면 그냥 넘어가기 : 데이터가 중복임
+                    if element.find("dl", class_ = 'wiki-folding') != None:
+                        continue
                     
-            return (head, text_content)
+                    # 만약 테이블 요소를 가지고 있거나 자체가 테이블 클래스라면 테이블을 strip하는 함수 적용
+                    elif element.find("table", class_ = 'wiki-table') != None or element.get('class')[0] == 'wiki-table':
+                        text_content.append(self.strip_table(element))
+
+                    # 만약 각주가 있는 엘리먼트라면 각주를 strip하는 함수 적용
+                    elif element.find("a", class_ = 'wiki-fn-content') != None:
+                        text_content.append(self.strip_footnotes(element))
+                    # elif (fn_c := element.find("a", class_ = 'wiki-fn-content')) != None: ## 각주가 있을 경우
+                    #     text_content.append(f"{element.contents[0]}({fn_c['href']}; {fn_c['title']})")
+                    
+
+                    
+
+                    else: #아니면 그냥 일반 get_text() 적용
+                        text_content.append(element.get_text())
+                        
+                return (head, text_content)
         
 
     def get_item_and_next(self, target_key):
