@@ -8,7 +8,7 @@ url = 'https://namu.wiki/w/ILLIT'
 # url = 'https://namu.wiki/w/SUMMER%20MOON'
 # url = 'https://namu.wiki/w/%EA%B4%91%EC%A0%80%EC%9A%B0%20%EC%B0%A8%EC%A7%80'
 
-url = 'https://namu.wiki/w/%EA%B0%80%EB%82%98%EC%9E%90%EC%99%80%EC%8B%9C'
+# url = 'https://namu.wiki/w/ILLIT/Weverse'
 
 # html 가져오기
 session = requests.Session()
