@@ -83,6 +83,7 @@ class NamuCrawler(object):
     
     def strip_ex_links(self, ele):
         """링크를 벗겨 텍스트에 삽입하는 함수"""
+        
         return ele.get_text()
 
     def get_content_between_tags(self, head, start_tag, end_tag):
@@ -133,8 +134,8 @@ class NamuCrawler(object):
                     #     text_content.append(f"{element.contents[0]}({fn_c['href']}; {fn_c['title']})")
                     
                     # 외부 링크가 있으면 링크를 strip 하는 함수 적용 => 추가 개발 필요
-                    elif element.find("a", class_ = 'wiki-link-external') != None:
-                        text_content.append(self.strip_ex_links(element))
+                    # elif element.find("a", class_ = 'wiki-link-external') != None:
+                    #     text_content.append(self.strip_ex_links(element))
 
                     
 

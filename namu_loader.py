@@ -18,6 +18,7 @@ class NamuLoader(BaseLoader):
             self.base_nc.print_toc()
 
     def get_total_content(self, parent_item, sub_url, hop):
+        """sub crawler 생성 및 데이터 가져오기"""
         sub_nc = NamuCrawler(url = sub_url, hop = hop)
         sub_nc.construct_toc()
         # print(sub_nc.get_doc_title(), parent_item, sub_nc.hop, max_hop)
@@ -42,30 +43,37 @@ class NamuLoader(BaseLoader):
         print(f"Sub document {sub_nc.get_doc_title()} done (hop : {sub_nc.hop}/{self.max_hop} \t elapsed_time: {round(time.time() - start, 1)} seconds)")
         return to_return
 
-    def get_a_content(self, header):
+    def get_a_content(self, s, header = None):
         """하나의 header의 본문 내용 가져오기"""
-        cur_toc_item, content = self.base_nc.get_content_heading(header)
+        cur_toc_item, content = self.base_nc.get_content_heading(s)
+        meta_data = {
+            "index" : cur_toc_item[0],
+            "toc_item" : cur_toc_item[1],
+            "base_url" : self.url,
+            "page_hop" : self.base_nc.hop
+        }
         if content == None:
-            return (cur_toc_item, None)
-        elif type(content) == str and '/w/' in content: # content가 링크 대체라면 링크로 들어가 전체 다 가져오기
+            return (meta_data, None)
+        elif type(content) == str and '/w/' in content: 
+            # content가 링크 대체라면 링크로 들어가 전체 다 가져오기
             if self.base_nc.hop + 1 <= self.max_hop:
                 print(base_url + content)
-                return (cur_toc_item, self.get_total_content(parent_item = self.base_nc.toc_dict.get(header)[0], sub_url = base_url + content, hop = self.base_nc.hop + 1))
+                sub_content = self.get_total_content(
+                    parent_item = self.base_nc.toc_dict.get(s)[0], 
+                    sub_url = base_url + content, 
+                    hop = self.base_nc.hop + 1
+                )
+                return (cur_toc_item, sub_content)
             else:
-                return (cur_toc_item, f"다음 문서로 대체 설명: {base_url + content}")
+                return (meta_data, f"다음 문서로 대체 설명: {base_url + content}")
         else:
-            return (cur_toc_item, " ".join(content))
+            return (meta_data, " ".join(content))
         
     def lazy_load(self) -> Iterator[Document]:
         """Iterate over content items to load Documents"""
-        """Update"""
         for s, header in self.base_nc.toc_dict.items():
-            ((index, toc_item), cur_content) = self.get_a_content(s)
+            (cur_metadata, cur_content) = self.get_a_content(s)
             
-            cur_metadata = {
-                "index" : index,
-                "toc_item" : toc_item
-            }
             if cur_content == None: #각주가 없는 문서의 경우 cur_content를 None 반환 => 넘어가기
                 continue
 
