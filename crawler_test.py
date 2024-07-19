@@ -8,7 +8,7 @@ url = 'https://namu.wiki/w/ILLIT'
 # url = 'https://namu.wiki/w/SUMMER%20MOON'
 # url = 'https://namu.wiki/w/%EA%B4%91%EC%A0%80%EC%9A%B0%20%EC%B0%A8%EC%A7%80'
 
-url = 'https://namu.wiki/w/%EA%B0%80%EB%82%98%EC%9E%90%EC%99%80%EC%8B%9C'
+# url = 'https://namu.wiki/w/ILLIT/Weverse'
 
 # html 가져오기
 session = requests.Session()
@@ -71,6 +71,20 @@ for k, v in toc_dict.items():
         print(v[0][0] + " " + v[0][1])
     else:
         print("".join(["\t"] * (num - 1)) + v[0][0] + " " + v[0][1])
+
+def get_ancestor_items(toc_index, level = None):
+    toc_index = toc_index[:-1] if toc_index [-1] == "." else toc_index
+    
+    if level == None:
+        level = len(toc_index.split(".")) - 1
+        
+    cur_toc_index = toc_index
+    ancestors = []
+    for i in range(level):
+        ancestors.insert(0, toc_dict.get(f"s-{".".join(cur_toc_index.split(sep = ".")[:-1])}")[0])
+        cur_toc_index = ancestors[-1][0][:-1]
+    toc_items = "/".join([i[1] for i in ancestors])
+    return toc_items
 
 def strip_footnotes(ele):
     content_list = []
