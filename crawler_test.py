@@ -72,6 +72,20 @@ for k, v in toc_dict.items():
     else:
         print("".join(["\t"] * (num - 1)) + v[0][0] + " " + v[0][1])
 
+def get_ancestor_items(toc_index, level = None):
+    toc_index = toc_index[:-1] if toc_index [-1] == "." else toc_index
+    
+    if level == None:
+        level = len(toc_index.split(".")) - 1
+        
+    cur_toc_index = toc_index
+    ancestors = []
+    for i in range(level):
+        ancestors.insert(0, toc_dict.get(f"s-{".".join(cur_toc_index.split(sep = ".")[:-1])}")[0])
+        cur_toc_index = ancestors[-1][0][:-1]
+    toc_items = "/".join([i[1] for i in ancestors])
+    return toc_items
+
 def strip_footnotes(ele):
     content_list = []
     prv_tag = None
