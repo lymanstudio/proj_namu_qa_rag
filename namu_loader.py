@@ -65,7 +65,7 @@ class NamuLoader(BaseLoader):
 
             "index" : cur_toc_item[0],
             "toc_item" : cur_toc_item[1],
-            "ancestor_toc_items" : nc.get_ancestor_items(toc_index = cur_toc_item[0])
+            "ancestor_toc_item" : nc.get_ancestor_items(toc_index = cur_toc_item[0])
         }
 
         if content == None:
