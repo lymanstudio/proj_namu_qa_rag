@@ -21,6 +21,20 @@ key_dir = os.path.join(base_dir, 'keys')
 os.chdir(base_dir)
 print(os.getcwd())
 
+def export_csv(docs):
+    import pandas as pd
+
+    tmp_df = pd.DataFrame(columns = list(docs[0].metadata.keys()) + ['page_content'])
+    for doc in docs:
+        if len(doc.page_content) > 200:
+            page_content = doc.page_content[:200]
+        else:
+            page_content = doc.page_content
+        cur_data = doc.metadata
+        cur_data['page_content']= page_content
+        tmp_df = pd.concat([tmp_df, pd.DataFrame([cur_data])], ignore_index=True)
+    return tmp_df
+
 from dotenv import load_dotenv
 print(load_dotenv(dotenv_path= os.path.join(key_dir, ".env")))
 os.chdir(cur_notebook_dir)
@@ -36,10 +50,8 @@ def get_documnet_from_namuwiki(url, NamuLoader_obj, hop = 1):
     # docs = splitter.split_documents(docs)
     return docs
 
-def create_db(docs):
-    embedding = OpenAIEmbeddings()
-    vectorStore = FAISS.from_documents(docs, embedding = embedding)
-    return vectorStore
+
+embedding = OpenAIEmbeddings()
 
 def get_chain(retriever, model):
     prompt = ChatPromptTemplate.from_template("""
@@ -116,7 +128,7 @@ print_docs(docs)
 
 k = 10
 
-vectorStore = create_db(docs)
+vectorStore = FAISS.from_documents(docs, embedding = embedding)
 ret = vectorStore.as_retriever(search_kwargs={'k': k})
 chain = get_chain(ret, llm)
 
@@ -134,13 +146,14 @@ from langchain.retrievers import EnsembleRetriever
 
 # from langchain_core.callbacks import CallbackManagerForRetrieverRun
 
-docs_meta = [Document(page_content = doc.metadata['abs_page_toc_item'], metadata = doc.metadata) for doc in docs]
-vectorStore = create_db(docs)
-vectorStore_meta = create_db(docs_meta)
+# docs_meta = [Document(page_content = doc.metadata['abs_page_toc_item'], metadata = doc.metadata) for doc in docs]
+
+vectorStore = FAISS.from_documents(docs, embedding = embedding)
+vectorStore_meta = FAISS.from_texts([doc.metadata['abs_page_toc_item'] for doc in docs], embedding, metadatas= [doc.metadata for doc in docs])
 k = 10
 ret_content = vectorStore.as_retriever(search_kwargs={'k': k})
 ret_meta = vectorStore_meta.as_retriever(search_kwargs={'k': k})
-ret_keyword = BM25Retriever.from_documents(docs_meta, search_kwargs={'k': k})
+ret_keyword = BM25Retriever.from_documents([doc for doc in vectorStore_meta.docstore._dict.values()], search_kwargs={'k': k})
 
 # get_orig_doc = lambda metadoc: [doc for doc in docs if doc.metadata['abs_page_toc_item'] == metadoc.metadata['abs_page_toc_item']]
 
@@ -148,7 +161,7 @@ from typing import List, Optional
 from langchain_core.callbacks import CallbackManagerForRetrieverRun
 from langchain_core.retrievers import BaseRetriever, RetrieverLike
 
-class ensemble_retriever_meta(EnsembleRetriever):
+class MetadataRetriever(EnsembleRetriever):
     retrievers: List[RetrieverLike]
     weights: List[float]
     c: int = 60
@@ -188,9 +201,6 @@ class ensemble_retriever_meta(EnsembleRetriever):
         print('dfdf')
         return self.get_docs(fused_documents)
     
-
-
-
 
 
 

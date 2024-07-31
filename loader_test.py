@@ -7,39 +7,14 @@ import time
 base_url = "https://namu.wiki"
 
 
-url = 'https://namu.wiki/w/ILLIT'
-max_hop = 1
+url = 'https://namu.wiki/w/프로미스 나인'
+max_hop = 2
 verbose = True
 base_nc = NamuCrawler(url = url, hop = 0)
 base_nc.construct_toc()
 if (verbose) == True:
     base_nc.print_toc()
 
-def get_total_content(parent_item, sub_url, hop):
-    """sub crawler 생성 및 데이터 가져오기"""
-    sub_nc = NamuCrawler(url = sub_url, hop = hop)
-    sub_nc.construct_toc()
-    # print(sub_nc.get_doc_title(), parent_item, sub_nc.hop, max_hop)
-    to_return = ""
-    start = time.time()
-    for k, v in sub_nc.toc_dict.items():
-        cur_toc_item, content = sub_nc.get_content_heading(k)
-        
-        if type(content) == str and f'/w/' in content: # content가 링크 대체이면서 
-            if sub_nc.hop < max_hop: #현재 문서의 hop이 max_hop보다 적거나 같으면 더 들어가기
-                content = get_total_content(parent_item = parent_item, sub_url = base_url + content, hop = sub_nc.hop + 1)
-            else: # max_hop과 같으면 그냥 링크로 대체한다고만 써주기
-                content = f"{cur_toc_item[1]}: 다음 문서로 대체 설명: {base_url + content}"
-        elif content == None: # 빈 각주라면 그냥 넘어가기
-            continue
-        else: # 일반 설명은 {현재 목차 : 설명} 꼴로 구성
-            content = f'{cur_toc_item[1]}: {" ".join(content) if type(content) == list else content}'
-        
-        to_return = to_return + "\n" + content + "\n"
-
-    # if verbose:
-    print(f"Sub document {sub_nc.get_doc_title()} done (hop : {sub_nc.hop}/{max_hop} \t elapsed_time: {round(time.time() - start, 1)} seconds)")
-    return to_return
 
 def make_sub_nc(parent_nc, sub_url, hop, parent_meta):
     sub_nc = NamuCrawler(url = sub_url, hop = hop)
@@ -52,8 +27,6 @@ def make_sub_nc(parent_nc, sub_url, hop, parent_meta):
 
 def get_docs(nc, s, parent_meta = None):
     """본문 내용 가져오기"""
-    if nc.hop == 1:
-        print("here")
     cur_toc_item, content = nc.get_content_heading(s)
     if parent_meta == None:
         parent_page_index = ""
@@ -90,7 +63,7 @@ def get_docs(nc, s, parent_meta = None):
     }
 
     if content == None:
-        return [Document(page_content = None, metadata = meta_data)]
+        return [Document(page_content = "", metadata = meta_data)]
 
     elif type(content) == str and '/w/' in content: 
         # content가 링크 대체라면 
@@ -123,3 +96,40 @@ for s, header in base_nc.toc_dict.items():
     #     print(">> ", s, header[0][1])
     #     print("\t", cur_content)
     # docs.append(Document(page_content= cur_content, metadata = cur_metadata))
+
+def print_doc(docs):
+    
+    for doc in docs:
+        if len(doc.page_content) > 200:
+            page_content = doc.page_content[:200]
+        else:
+            page_content = doc.page_content
+        print(f"metadata: {doc.metadata}")
+        print(f"content: {page_content}")
+        print("==================================================")
+
+def export_csv(docs):
+    import pandas as pd
+
+    tmp_df = pd.DataFrame(columns = list(docs[0].metadata.keys()))
+    for doc in docs:
+        if len(doc.page_content) > 200:
+            page_content = doc.page_content[:200]
+        else:
+            page_content = doc.page_content
+        cur_data = doc.metadata
+        cur_data['page_content']= page_content
+        tmp_df = pd.concat([tmp_df, pd.DataFrame([cur_data])], ignore_index=True)
+    return tmp_df
+
+
+    
+
+from namu_loader import NamuLoader
+
+url = 'https://namu.wiki/w/ILLIT'
+nl = NamuLoader(url = url, max_hop = 2, verbose = True)
+docs2= nl.load()
+
+df = export_csv(docs2)
+df.to_csv("tmp_df.csv")
