@@ -67,7 +67,7 @@ def main():
     status_ok = False
 
     st.set_page_config(
-        page_title = "Thesis Paper RAG",
+        page_title = "나무위키 RAG",
         page_icon = ":open_book:"
     )
 
@@ -149,8 +149,24 @@ def main():
                     , crucial_keyword = st.session_state.crucial_keyword if st.session_state.crucial_keyword_flag else False
                 )
                 docs = inst1.get_url(st.session_state.doc_search_keyword)
+                # st.write(docs)
+
+                if docs == "N/A":
+                    st.write("검색 결과 일치하는 문서가 없습니다. 다른 키워드로 검색해주세요.")
+                    st.stop()
                 doc_dict = dict((doc['title'].split(" - ")[0], doc['formattedUrl']) for doc in docs)
-                st.selectbox(label = '주제어 선택', options = doc_dict)
+                
+                doc_titles = []
+                doc_urls = []
+                for k, v in doc_dict.items():
+                    doc_titles.append(k)
+                    doc_urls.append(v)
+
+                st.radio(
+                    label = '대상 문서를 선택하세요.',
+                    options = doc_titles,
+                    captions = doc_urls
+                )
             # st.write(st.session_state.doc_search_keyword)
 
 

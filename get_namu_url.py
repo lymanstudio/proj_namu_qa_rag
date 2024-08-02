@@ -78,5 +78,8 @@ class GetNamuUrl:
 
         # url = res['items'][0]['formattedUrl']
         # url = re.sub(r'//en\.', '//', url) #영문 페이지 반환 시, 한국어 페이지로 반환하도록 url 변경
-                
-        return res['items']
+        
+        try:
+            return res['items']
+        except:
+            return "N/A"
