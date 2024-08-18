@@ -26,8 +26,7 @@ import numpy as np
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.runnables.config import run_in_executor
-from langchain_core.vectorstores import VectorStore
-
+from langchain_core.vectorstores import VectorStore, VectorStoreRetriever
 from langchain_community.docstore.base import AddableMixin, Docstore
 from langchain_community.docstore.in_memory import InMemoryDocstore
 from langchain_community.vectorstores.utils import (
@@ -197,7 +196,7 @@ class FaissMetaVectorStore(FAISS):
             ids=ids
         )
         _ = vecstore.__add(
-            metadata_texts, 
+            texts, 
             embeddings = metadata_embeddings, 
             docstore = vecstore.metadata_docstore,
             index_to_docstore_id = vecstore.index_to_metadata_docstore_id,
@@ -256,3 +255,28 @@ class FaissMetaVectorStore(FAISS):
         texts = [d.page_content for d in documents]
         metadatas = [d.metadata for d in documents]
         return cls.from_texts(texts, embedding, metadatas=metadatas, metadata_fields = metadata_fields, **kwargs)
+    
+    def as_retriever(self, vectorStoreType:str = "page_content", **kwargs: Any) -> VectorStoreRetriever:
+        tags = kwargs.pop("tags", None) or [] + self._get_retriever_tags()
+        if vectorStoreType == 'page_content':
+            vectorstore = FAISS(
+                embedding_function = self.embedding_function,
+                index = self.index,
+                docstore = self.content_docstore,
+                index_to_docstore_id = self.index_to_docstore_id,
+                distance_strategy = self.distance_strategy,
+                # override_relevance_score_fn = self.override_relevance_score_fn,
+                # _normalize_L2 = self._normalize_L2,
+            )
+        else:
+            vectorstore = FAISS(
+                embedding_function = self.embedding_function,
+                index = self.metaindex,
+                docstore = self.metadata_docstore,
+                index_to_docstore_id = self.index_to_metadata_docstore_id,
+                distance_strategy = self.distance_strategy,
+                # override_relevance_score_fn = self.override_relevance_score_fn,
+                # _normalize_L2 = self._normalize_L2,
+            )
+
+        return VectorStoreRetriever(vectorstore=vectorstore, tags=tags, **kwargs)
