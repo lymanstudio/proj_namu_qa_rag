@@ -12,9 +12,12 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.runnables import ConfigurableField
 from langchain_community.vectorstores.faiss import FAISS
 
+from FaissMetaVectorStore import FaissMetaVectorStore
+
 from namu_loader import NamuLoader
 
-cur_notebook_dir = os.getcwd()
+cur_notebook_dir = "C:\\Users\\thdwo\\Documents\\Github\\proj_artist_info_gen"#os.getcwd()
+os.chdir(cur_notebook_dir)
 os.chdir("../")
 base_dir = os.getcwd()
 key_dir = os.path.join(base_dir, 'keys')
@@ -115,9 +118,10 @@ def get_answer(chain, question,  temp = .1, max_tokens = 2048):
 #============================================= RUN =============================================
 
 url = 'https://namu.wiki/w/ILLIT'
+url = 'https://namu.wiki/w/%EC%84%9C%EC%9A%B8%20%EB%B2%84%EC%8A%A4%205413'
 # url = 'https://namu.wiki/w/%EB%B0%95%EC%84%B1%EC%88%98(%EC%A0%95%EC%B9%98%EC%9D%B8)'
 
-docs = get_documnet_from_namuwiki(url = url , NamuLoader_obj = NamuLoader, hop = 1)
+docs = get_documnet_from_namuwiki(url = url , NamuLoader_obj = NamuLoader, hop = 0)
 
 def print_docs(docs):
     for doc in docs:
@@ -129,6 +133,8 @@ print_docs(docs)
 k = 10
 
 vectorStore = FAISS.from_documents(docs, embedding = embedding)
+vs_meta = FaissMetaVectorStore.from_documents(docs, embedding = embedding, metadata_fields= ["abs_page_toc_item", "base_page_url"])
+
 ret = vectorStore.as_retriever(search_kwargs={'k': k})
 chain = get_chain(ret, llm)
 
