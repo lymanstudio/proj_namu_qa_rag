@@ -2,10 +2,18 @@ import streamlit as st
 import openai
 import anthropic
 import os
-import math
+from operator import itemgetter
 from namu_loader import NamuLoader
+from FaissMetaVectorStore import FaissMetaVectorStore
 from get_namu_url import GetNamuUrl
-from langchain_openai import OpenAIEmbeddings
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_anthropic import ChatAnthropic
+from langchain.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.runnables import RunnablePassthrough
+from langchain.retrievers import EnsembleRetriever
+
 
 chat_gpt_models = {
     "GPT-4o" : "gpt-4o",
@@ -20,8 +28,40 @@ claude_models = {
     "Claude 3 Haiku" : "claude-3-haiku-20240307", 
 }
 
-os.environ["GOOGLE_API_KEY"] = "KEY"
-os.environ["GOOGLE_SEARCH_ENGINE"] = "KEY"
+os.environ["GOOGLE_API_KEY"] = "AIzaSyAUGGN0en84AekyOC6g-1gf87Ptsl9M8RU"
+os.environ["GOOGLE_SEARCH_ENGINE"] = "e5d0e1bfcbb9e47e4"
+EMBEDDING_FUNC = OpenAIEmbeddings()
+
+def get_documnet_from_namuwiki(url, NamuLoader_obj, hop = 1):
+    loader = NamuLoader_obj(url, hop, verbose = True)
+    docs = loader.load()
+
+    # splitter = RecursiveCharacterTextSplitter(
+    #     chunk_size=500,
+    #     chunk_overlap=20
+    #     )
+    # docs = splitter.split_documents(docs)
+    return docs
+
+def get_chain(retriever, model):
+    prompt = ChatPromptTemplate.from_template("""
+        Answer the users's QUESTION based on the CONTEXT documents. Use the language that the user types in.
+        If you can not find an appropriate answer, return "No Answer found.".
+        CONTEXT: {context}
+        QUESTION: {question}
+    """)
+
+    def concat_docs(docs) -> str: # retriever가 반환한 모든 Document들의 page_content를 하나의 단일 string으로 붙여주는 함수
+        return "".join(doc.page_content for doc in docs)
+
+    chain = {
+        "context" : itemgetter('question') | retriever | concat_docs
+        , "question" : itemgetter('question') | RunnablePassthrough()
+    } | prompt| model | StrOutputParser()
+
+    return chain
+
+
 
 @st.cache_resource
 def is_api_key_valid(api_key, llm_type):
@@ -72,7 +112,7 @@ def main():
     )
 
     st.title("NamuWiki RAG")
-    st.write("Find your interest and ask anything about it!")
+    # st.write("Find your interest and ask anything about it!")
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
@@ -162,16 +202,61 @@ def main():
                     doc_titles.append(k)
                     doc_urls.append(v)
 
-                st.radio(
+                doc_name = st.radio(
                     label = '대상 문서를 선택하세요.',
                     options = doc_titles,
                     captions = doc_urls
                 )
-            # st.write(st.session_state.doc_search_keyword)
+        
+    
 
+    
+    with chain_section:
+        st.write(f"선택된 문서: {doc_name}({doc_dict.get(doc_name)})")
+        with st.status("RAG 생성 중..."):
+            model = ChatAnthropic(model_name=claude_models.get(select_model)) if llm_type != "ChatGPT" else ChatOpenAI(model = chat_gpt_models.get(select_model))
 
+            docs = get_documnet_from_namuwiki(url = doc_dict.get(doc_name) , NamuLoader_obj = NamuLoader, hop = 0)
+            vs_meta = FaissMetaVectorStore.from_documents(docs, embedding = EMBEDDING_FUNC, metadata_fields= ["abs_page_toc_item", "base_page_url"])
+            ret_content = vs_meta.as_retriever(vectorStoreType='page_content', search_kwargs={'k': add_k_select})
+            ret_meta = vs_meta.as_retriever(vectorStoreType='metadata', search_kwargs={'k': add_k_select})
+            retriever = EnsembleRetriever(
+                retrievers=[ret_meta, ret_content], weights=[0.5, 0.5]
+            )
 
+            prompt = ChatPromptTemplate.from_template("""
+                Answer the users's QUESTION based on the CONTEXT documents. Use the language that the user types in.
+                If you can not find an appropriate answer, return "No Answer found.".
+                CONTEXT: {context}
+                QUESTION: {question}
+            """)
 
+            def concat_docs(docs) -> str: # retriever가 반환한 모든 Document들의 page_content를 하나의 단일 string으로 붙여주는 함수
+                return "".join(doc.page_content for doc in docs)
+
+            chain = {
+                "context" : itemgetter('question') | retriever | concat_docs
+                , "question" : itemgetter('question') | RunnablePassthrough()
+            } | prompt| model | StrOutputParser()
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+    
+    for m in st.session_state.messages:
+        with st.chat_message(m["role"]):
+            st.markdown(m['content'])
+    if input_q := st.chat_input("Ask anything about your paper."):
+        # st.chat_input을 할당함과 동시에 None이 들어가지 않게 := 로 할당 후 if 문의로 체크
+        with st.chat_message("user"):
+            st.markdown(input_q)
+        st.session_state.messages.append({"role": "user", "content":input_q})
+
+        
+        with st.chat_message("assistant"):
+            with st.spinner('Generating an answer...'):
+                answer = chain.invoke({"question": input_q})
+            st.markdown(answer)
+        st.session_state.messages.append({"role": "assistant", "content":answer})
 
 
 if __name__ == '__main__':
