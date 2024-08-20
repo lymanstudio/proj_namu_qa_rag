@@ -14,9 +14,11 @@ class NamuCrawler():
         self.soup = BeautifulSoup(html_doc.text, 'html.parser')
         self.toc_dict = {}
 
-    def construct_toc(self):
+    def construct_toc(self) -> bool:
         """## 목차(TOC) 정보 추출 및 TOC 딕셔너리 구성"""
-        toc = self.soup.find("div", class_ = 'toc-indent')
+        if (toc := self.soup.find("div", class_ = 'toc-indent')) == None:
+            return False
+
 
         html_str = str(self.soup)
         start_pos = html_str.find(str('<body>')) + len(str('<body>'))
@@ -45,7 +47,8 @@ class NamuCrawler():
         self.toc_dict['s-f'] = (# 마지막엔 각주 영역
             ("EOD.", 'FOOTNOTES'), self.soup.find("div", class_ = 'wiki-macro-footnote')
         ) 
-
+        return True # 정상 종료
+    
     def get_doc_title(self) -> str:
         """URL에서 현재 문서의 타이틀(주제) 반환 """
         return self.soup.find("a", href = "/w/"+self.url.split("/w/")[-1].split("?")[0]).get_text()
