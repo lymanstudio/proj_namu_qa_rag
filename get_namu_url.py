@@ -27,10 +27,10 @@ class GetNamuUrl:
             cx=self.search_engine_key,
             siteSearch=siteDomain,
             siteSearchFilter='i',
-            excludeTerms = self.rev_exclude,
+            excludeTerms = "" if self.rev_exclude == False else self.rev_exclude,
             cr = 'countryKR' ,
             hl = 'ko',
-            orTerms = self.crucial_keyword
+            orTerms = "" if self.crucial_keyword == False else self.crucial_keyword
             
         )
         .execute()
@@ -62,10 +62,10 @@ class GetNamuUrl:
                         cx=self.search_engine_key,
                         siteSearch=siteDomain,
                         siteSearchFilter='i',
-                        excludeTerms = self.rev_exclude,
+                        excludeTerms = "" if self.rev_exclude == False else self.rev_exclude,
                         cr = 'countryKR' ,
                         hl = 'ko',
-                        orTerms = self.crucial_keyword
+                        orTerms = "" if self.crucial_keyword == False else self.crucial_keyword
                         
                     )
                     .execute()
