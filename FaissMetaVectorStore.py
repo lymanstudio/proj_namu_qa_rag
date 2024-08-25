@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+import pickle
 import warnings
 from pathlib import Path
 from typing import (
@@ -59,10 +60,9 @@ class FaissMetaVectorStore(FAISS):
             ],
             index: Any,
             metaindex: Any,
-            content_docstore: Docstore,
-            metadata_docstore: Docstore,
+            docstore: Docstore,
             index_to_docstore_id: Dict[int, str],
-            index_to_metadata_docstore_id: Dict[int, str],
+            # index_to_metadata_docstore_id: Dict[int, str],
             relevance_score_fn: Optional[Callable[[float], float]] = None,
             normalize_L2: bool = False,
             distance_strategy: DistanceStrategy = DistanceStrategy.EUCLIDEAN_DISTANCE,
@@ -76,10 +76,10 @@ class FaissMetaVectorStore(FAISS):
         self.embedding_function = embedding_function
         self.index = index
         self.metaindex = metaindex
-        self.content_docstore = content_docstore
-        self.metadata_docstore = metadata_docstore
+        self.docstore = docstore
+        # self.metadata_docstore = metadata_docstore
         self.index_to_docstore_id = index_to_docstore_id
-        self.index_to_metadata_docstore_id = index_to_metadata_docstore_id
+        # self.index_to_metadata_docstore_id = index_to_metadata_docstore_id
         self.distance_strategy = distance_strategy
         self.override_relevance_score_fn = relevance_score_fn
         self._normalize_L2 = normalize_L2
@@ -96,18 +96,18 @@ class FaissMetaVectorStore(FAISS):
             self,
             texts: Iterable[str],
             embeddings: Iterable[List[float]],
-            docstore: Docstore,
-            index_to_docstore_id: Dict[int, str],
+            # docstore: Docstore,
+            # index_to_docstore_id: Dict[int, str],
             index: Any,
             metadatas: Optional[Iterable[dict]] = None,
             ids: Optional[List[str]] = None,
         ) -> List[str]:
         faiss = dependable_faiss_import()
 
-        if not isinstance(docstore, AddableMixin):
+        if not isinstance(self.docstore, AddableMixin):
             raise ValueError(
                 "If trying to add texts, the underlying docstore should support "
-                f"adding items, which {docstore} does not"
+                f"adding items, which {self.docstore} does not"
             )
 
         # texts와 metadatas의 사이즈(개수)가 같은지 체크
@@ -134,11 +134,12 @@ class FaissMetaVectorStore(FAISS):
         index.add(vector)
 
         # Add information to docstore and index. ## Document와 추가 정보들을 저장하는 단계
-        ids = ids or [str(uuid.uuid4()) for _ in texts]
-        docstore.add({id_: doc for id_, doc in zip(ids, documents)})
-        starting_len = len(index_to_docstore_id)
-        index_to_id = {starting_len + j: id_ for j, id_ in enumerate(ids)}
-        index_to_docstore_id.update(index_to_id)
+        if ids is None:
+            ids = ids or [str(uuid.uuid4()) for _ in texts]
+            self.docstore.add({id_: doc for id_, doc in zip(ids, documents)})
+            starting_len = len(self.index_to_docstore_id)
+            index_to_id = {starting_len + j: id_ for j, id_ in enumerate(ids)}
+            self.index_to_docstore_id.update(index_to_id)
 
         return ids
 
@@ -165,19 +166,18 @@ class FaissMetaVectorStore(FAISS):
             index = faiss.IndexFlatL2(len(content_embeddings[0]))
             metaindex = faiss.IndexFlatL2(len(content_embeddings[0]))
         
-        content_docstore = kwargs.pop("docstore", InMemoryDocstore())
-        metadata_docstore = kwargs.pop("docstore", InMemoryDocstore())
+        docstore = kwargs.pop("docstore", InMemoryDocstore())
+        # metadata_docstore = kwargs.pop("docstore", InMemoryDocstore())
         index_to_docstore_id = kwargs.pop("index_to_docstore_id", {})
-        index_to_metadata_docstore_id = kwargs.pop("index_to_docstore_id", {})
+        # index_to_metadata_docstore_id = kwargs.pop("index_to_docstore_id", {})
 
         vecstore = cls(
             embedding,
             index,
             metaindex,
-            content_docstore,
-            metadata_docstore,
+            docstore,
             index_to_docstore_id,
-            index_to_metadata_docstore_id,
+            # index_to_metadata_docstore_id,
             normalize_L2=normalize_L2,
             distance_strategy=distance_strategy,
             **kwargs,
@@ -186,8 +186,8 @@ class FaissMetaVectorStore(FAISS):
         ids = vecstore.__add(
             texts, 
             embeddings = content_embeddings, 
-            docstore = vecstore.content_docstore,
-            index_to_docstore_id = vecstore.index_to_docstore_id,
+            # docstore = vecstore.docstore,
+            # index_to_docstore_id = vecstore.index_to_docstore_id,
             index = vecstore.index,
             metadatas=metadatas, 
             ids=ids
@@ -195,8 +195,8 @@ class FaissMetaVectorStore(FAISS):
         _ = vecstore.__add(
             texts, 
             embeddings = metadata_embeddings, 
-            docstore = vecstore.metadata_docstore,
-            index_to_docstore_id = vecstore.index_to_metadata_docstore_id,
+            # docstore = vecstore.docstore,
+            # index_to_docstore_id = vecstore.index_to_metadata_docstore_id,
             index = vecstore.metaindex,
             metadatas=metadatas, 
             ids=ids
@@ -259,7 +259,7 @@ class FaissMetaVectorStore(FAISS):
             vectorstore = FAISS(
                 embedding_function = self.embedding_function,
                 index = self.index,
-                docstore = self.content_docstore,
+                docstore = self.docstore,
                 index_to_docstore_id = self.index_to_docstore_id,
                 distance_strategy = self.distance_strategy,
                 # override_relevance_score_fn = self.override_relevance_score_fn,
@@ -269,11 +269,65 @@ class FaissMetaVectorStore(FAISS):
             vectorstore = FAISS(
                 embedding_function = self.embedding_function,
                 index = self.metaindex,
-                docstore = self.metadata_docstore,
-                index_to_docstore_id = self.index_to_metadata_docstore_id,
+                docstore = self.docstore,
+                index_to_docstore_id = self.index_to_docstore_id,
                 distance_strategy = self.distance_strategy,
                 # override_relevance_score_fn = self.override_relevance_score_fn,
                 # _normalize_L2 = self._normalize_L2,
             )
 
         return VectorStoreRetriever(vectorstore=vectorstore, tags=tags, **kwargs)
+    
+    def save_local(self, folder_path: str, index_name: str = "index") -> None:
+        """Save FAISS index, docstore, and index_to_docstore_id to disk.
+
+        Args:
+            folder_path: folder path to save index, docstore,
+                and index_to_docstore_id to.
+            index_name: for saving with a specific index file name
+        """
+        path = Path(folder_path)
+        path.mkdir(exist_ok=True, parents=True)
+
+        # save index separately since it is not picklable
+        faiss = dependable_faiss_import()
+        faiss.write_index(self.index, str(path / f"{index_name}.faiss"))
+        faiss.write_index(self.metaindex, str(path / f"meta_{index_name}.faiss"))
+
+        # save docstore and index_to_docstore_id
+        with open(path / f"{index_name}.pkl", "wb") as f:
+            pickle.dump((self.docstore, self.index_to_docstore_id), f)
+
+    @classmethod
+    def load_local(
+            cls,
+            folder_path: str,
+            embedding: Embeddings,
+            index_name: str = "index",
+        ) -> FaissMetaVectorStore:
+        """Load FAISS index, docstore, and index_to_docstore_id from disk.
+
+        Args:
+            folder_path: folder path to load index, docstore,
+                and index_to_docstore_id from.
+            embeddings: Embeddings to use when generating queries
+            index_name: for saving with a specific index file name
+        """
+        path = Path(folder_path)
+        # load index separately since it is not picklable
+        faiss = dependable_faiss_import()
+        index = faiss.read_index(str(path / f"{index_name}.faiss"))
+        metaindex = faiss.read_index(str(path / f"meta_{index_name}.faiss"))
+        
+        # load docstore and index_to_docstore_id
+        with open(path / f"{index_name}.pkl", "rb") as f:
+            docstore, index_to_docstore_id = pickle.load(f)
+            
+        return cls(
+            embedding,
+            index,
+            metaindex,
+            docstore,
+            index_to_docstore_id,
+            distance_strategy = DistanceStrategy
+        )

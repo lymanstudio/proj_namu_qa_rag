@@ -7,7 +7,6 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_anthropic import ChatAnthropic
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.runnables import ConfigurableField
 from langchain_community.vectorstores.faiss import FAISS
@@ -42,7 +41,7 @@ from dotenv import load_dotenv
 print(load_dotenv(dotenv_path= os.path.join(key_dir, ".env")))
 os.chdir(cur_notebook_dir)
 
-def get_documnet_from_namuwiki(url, NamuLoader_obj, hop = 1):
+def get_document_from_namuwiki(url, NamuLoader_obj, hop = 1):
     loader = NamuLoader_obj(url, hop, verbose = True)
     docs = loader.load()
 
@@ -117,11 +116,11 @@ def get_answer(chain, question,  temp = .1, max_tokens = 2048):
 
 #============================================= RUN =============================================
 
-url = 'https://namu.wiki/w/ILLIT'
-url = 'https://namu.wiki/w/%EC%84%9C%EC%9A%B8%20%EB%B2%84%EC%8A%A4%205413'
+url = "https://namu.wiki/w/%ED%80%B8%28%EB%B0%B4%EB%93%9C%29"
+# url = 'https://namu.wiki/w/%EC%84%9C%EC%9A%B8%20%EB%B2%84%EC%8A%A4%205413'
 # url = 'https://namu.wiki/w/%EB%B0%95%EC%84%B1%EC%88%98(%EC%A0%95%EC%B9%98%EC%9D%B8)'
 
-docs = get_documnet_from_namuwiki(url = url , NamuLoader_obj = NamuLoader, hop = 0)
+docs = get_document_from_namuwiki(url = url , NamuLoader_obj = NamuLoader, hop = 1)
 
 def print_docs(docs):
     for doc in docs:
@@ -130,17 +129,20 @@ def print_docs(docs):
 print_docs(docs)
 
 
-k = 10
+k = 5
 
-vectorStore = FAISS.from_documents(docs, embedding = embedding)
-vs_meta = FaissMetaVectorStore.from_documents(docs, embedding = embedding, metadata_fields= ["abs_page_toc_item", "base_page_url"])
-
-ret = vectorStore.as_retriever(search_kwargs={'k': k})
+vs = FAISS.from_documents(docs, embedding = embedding)
+ret = vs.as_retriever(search_kwargs={'k': k})
 chain = get_chain(ret, llm)
 
-question = "아일릿의 앨범에 대해 알려줘"
+vs_meta = FaissMetaVectorStore.from_documents(docs, embedding = embedding, metadata_fields= ["abs_page_toc_item", "base_page_url"])
+ret_meta = vs_meta.as_retriever(vectorStoreType='metadata', search_kwargs={'k': k})
+chain_meta = get_chain(ret_meta, llm)
+
+question = "음반에 대해 설명해줘"
 
 get_answer(chain, question)
+get_answer(chain_meta, question)
 
 
 
@@ -161,66 +163,8 @@ ret_content = vectorStore.as_retriever(search_kwargs={'k': k})
 ret_meta = vectorStore_meta.as_retriever(search_kwargs={'k': k})
 ret_keyword = BM25Retriever.from_documents([doc for doc in vectorStore_meta.docstore._dict.values()], search_kwargs={'k': k})
 
-# get_orig_doc = lambda metadoc: [doc for doc in docs if doc.metadata['abs_page_toc_item'] == metadoc.metadata['abs_page_toc_item']]
-
-from typing import List, Optional
-from langchain_core.callbacks import CallbackManagerForRetrieverRun
-from langchain_core.retrievers import BaseRetriever, RetrieverLike
-
-class MetadataRetriever(EnsembleRetriever):
-    retrievers: List[RetrieverLike]
-    weights: List[float]
-    c: int = 60
-    id_key: Optional[str] = None
-    orig_docs: List[Document]
-
-    def get_docs(self, res_docs):
-        get_orig_doc = lambda metadoc: [doc for doc in self.orig_docs if doc.metadata['abs_page_toc_item'] == metadoc.metadata['abs_page_toc_item']]
-        ret_docs = []
-        print("dd")
-        for doc in res_docs: 
-            if doc.page_content == doc.metadata['abs_page_toc_item']:
-                print("d")
-                doc = get_orig_doc(doc)
-            if doc not in ret_docs:
-                ret_docs.append(doc)
-        return ret_docs
-
-    def _get_relevant_documents(
-        self,
-        query: str,
-        *,
-        run_manager: CallbackManagerForRetrieverRun,
-    ) -> List[Document]:
-        """
-        Get the relevant documents for a given query.
-
-        Args:
-            query: The query to search for.
-
-        Returns:
-            A list of reranked documents.
-        """
-
-        # Get fused result of the retrievers.
-        fused_documents = self.rank_fusion(query, run_manager)
-        print('dfdf')
-        return self.get_docs(fused_documents)
-    
-
-
 
 ensemble_retriever = EnsembleRetriever(
     retrievers=[ret_meta, ret_content], weights=[0.5, 0.5]
 )
-
-def get_docs(res_docs, orig_docs):
-    get_orig_doc = lambda metadoc: [doc for doc in orig_docs if doc.metadata['abs_page_toc_item'] == metadoc.metadata['abs_page_toc_item']]
-    ret_docs = []
-    for doc in res_docs: 
-        if doc.page_content == doc.metadata['abs_page_toc_item']:
-            doc = get_orig_doc(doc)
-        if doc not in ret_docs:
-            ret_docs.append(doc)
-    return ret_docs
         

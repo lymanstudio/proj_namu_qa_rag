@@ -60,6 +60,7 @@ class NamuLoader(BaseLoader):
             )
             
         meta_data = {
+            "page_topic" : nc.get_doc_title(),
             "base_page_url" : parent_meta['base_page_url'] if parent_meta else nc.url,
             "parent_page_url" : parent_meta['current_page_url'] if parent_meta else None,
             "current_page_url" : nc.url,

@@ -3,6 +3,7 @@
 import re
 import requests
 from bs4 import BeautifulSoup
+import urllib.parse
 
 class NamuCrawler():
     """나무 위키 문서 크롤러 클래스"""
@@ -17,7 +18,7 @@ class NamuCrawler():
     def construct_toc(self) -> bool:
         """## 목차(TOC) 정보 추출 및 TOC 딕셔너리 구성"""
         if (toc := self.soup.find("div", class_ = 'toc-indent')) == None:
-            return False
+            return False # "해당 문서를 찾을 수 없습니다."의 비정상 경우 False로 종료
 
 
         html_str = str(self.soup)
@@ -51,7 +52,9 @@ class NamuCrawler():
     
     def get_doc_title(self) -> str:
         """URL에서 현재 문서의 타이틀(주제) 반환 """
-        return self.soup.find("a", href = "/w/"+self.url.split("/w/")[-1].split("?")[0]).get_text()
+        topic = self.url.split("/w/")[-1].split("?")[0]
+        # topic = urllib.parse.unquote(topic)
+        return self.soup.find("a", href = "/w/"+topic).get_text()
 
     def print_toc(self):
         """포맷화된 목차 프린트 메서드"""

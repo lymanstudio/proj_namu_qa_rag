@@ -1,10 +1,12 @@
 import requests
 from bs4 import BeautifulSoup
 import re
+import urllib.parse
+
 
 # 웹 페이지 URL
-# url = 'https://namu.wiki/w/%EC%9A%A9%EC%9D%B8%20%EB%B2%84%EC%8A%A4%20119'
-url = 'https://namu.wiki/w/ILLIT'
+url = 'https://namu.wiki/w/%EC%84%9C%EC%9A%B8%20%EB%B2%84%EC%8A%A4%205413'
+# url = 'https://namu.wiki/w/ILLIT'
 # url = 'https://namu.wiki/w/SUMMER%20MOON'
 # url = 'https://namu.wiki/w/%EA%B4%91%EC%A0%80%EC%9A%B0%20%EC%B0%A8%EC%A7%80'
 
@@ -71,7 +73,11 @@ for k, v in toc_dict.items():
         print(v[0][0] + " " + v[0][1])
     else:
         print("".join(["\t"] * (num - 1)) + v[0][0] + " " + v[0][1])
-
+def get_doc_title(url) -> str:
+    """URL에서 현재 문서의 타이틀(주제) 반환 """
+    topic = url.split("/w/")[-1].split("?")[0]
+    topic = urllib.parse.unquote(topic)
+    return soup.find("a", href = "/w/"+topic).get_text()
 def get_ancestor_items(toc_index, level = None):
     toc_index = toc_index[:-1] if toc_index [-1] == "." else toc_index
     
